@@ -1,0 +1,8 @@
+VERY FIRST: 
+Change first few lines of Makefile to match your filename
+
+FIRST:
+make
+
+THEN:
+avrdude -p m328p -P /dev/ttyUSB0 -c stk500v1 -F -u -U flash:w:filename.hex
