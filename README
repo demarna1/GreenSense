@@ -1,8 +1,24 @@
-VERY FIRST: 
-Change first few lines of Makefile to match your filename
+ABOUT:
+	GreenSense - 2013 - ECE258
+	SensorCluster:
+		Collect data from temperature, humidity, and soil moisture 
+		sensors. Transmit that data wirelessly via TX434.
+	PiController:
+		Receive data wirelessly via RX434. Determine if the sensor
+		readings meet the specification. Upload the data to Lehigh's 
+		web server.
+	Contributors: 
+		Noah DeMarco
+		Ryan Jones
 
-FIRST:
-make
+GIT:
+	git add [rm] file.c
+	git commit -m "Commit Message"
+	git remote add origin https://github.com/demarna1/GreenSense.git
+	git push -u origin master
 
-THEN:
-avrdude -p m328p -P /dev/ttyUSB0 -c stk500v1 -F -u -U flash:w:filename.hex
+FLASHING:
+	1. make
+	2. avrdude -p m328p -P /dev/ttyUSB0 -c stk500v1 -F -u -U 
+	   flash:w:filename.hex
+
