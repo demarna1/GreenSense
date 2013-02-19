@@ -14,7 +14,6 @@ ABOUT:
 GIT:
 	git add [rm] file.c
 	git commit -m "Commit Message"
-	git remote add origin https://github.com/demarna1/GreenSense.git
 	git push -u origin master
 
 FLASHING:
