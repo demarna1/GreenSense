@@ -1,4 +1,4 @@
-// CPU clock speed used for delays
+// CPU clock speed used for delays and baud rate
 #define F_CPU 15000000UL
 
 // Include directories
@@ -8,15 +8,12 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-// Analog Pin 0 and wireless setting
-#define ADC_PIN 0
-
 // Define baud rate to be used
-#define USART_BAUDRATE 4800
+#define USART_BAUDRATE 1200
 
 // Wireless transmission bytes
-#define DUMMY 0x24
-#define ADDR 0x75
+#define DUMMY 0x00
+#define HEAD 0x4B
 
 #define BAUD_PRESCALE (( F_CPU / ( USART_BAUDRATE * 16UL )) - 1)
 
@@ -47,7 +44,6 @@ void setup() {
 void transmit_byte(uint8_t data) {
 	// Wait if a byte is being transmitted
 	while ((UCSR0A & (1 << UDRE0)) == 0) {}
-
 	// Transmit data
 	UDR0 = data;
 }
@@ -60,12 +56,15 @@ void write_serial(char *string, int size) {
 	}
 }
 
-void send_packet(uint8_t data) {
+void send_packet(uint16_t temp) {
 	// Transmit each portion of message
-	transmit_byte(DUMMY);
-	transmit_byte(ADDR);
-	transmit_byte(data);
-	transmit_byte(ADDR + data);
+	transmit_byte(DUMMY);		// 0x00 - Synchro
+	transmit_byte(DUMMY);		// 0x00 - Synchro
+	transmit_byte(HEAD);		// 0x4B - Header
+	transmit_byte(temp >> 8);	// High byte of temp
+	transmit_byte(temp);		// Low byte of temp
+	// Checksum of data
+	transmit_byte(temp + (temp >> 8));	
 }
 
 uint16_t read_adc() {
@@ -87,7 +86,6 @@ uint16_t read_adc() {
 int main (void) {
 	// Initialize variables
 	uint16_t temp_raw;
-	unsigned char on = 0;
 
 	/*************************
 	// VARIABLES FOR DEBUGGING
@@ -99,11 +97,19 @@ int main (void) {
 	setup();
 
 	while(1) {
+
+		// Activate circuit - switch is active low
+		// Set Pin 19 low (on ATMega328p)	
+		PORTB &= ~0x20;	
+		
+		// Delay allows MCU & sensors to adjust after standby
+		_delay_ms(100);
+
 		// Read and store temperature
 		temp_raw = read_adc();
 
 		// Send temperature data packet
-		send_packet(temp_raw >> 2);
+		send_packet(temp_raw);
 
 		/***************************************************
 		// USED ONLY FOR DEBUGGING - Send output to PC
@@ -111,20 +117,13 @@ int main (void) {
 		write_serial(buf, size);
 		***************************************************/
 
-		// Blink LED
-		if (on) {
-			PORTB &= ~0x20;
-			on = 0;
-		} 
-		else {
-			PORTB |= 0x20;
-			on = 1;
-		}
+		// Deactivate circuit to save power
+		// Set Pin 19 high
+		PORTB |= 0x20;
 
 		// Delay CPU for 1 second
 		_delay_ms(1000);
 	}
 	return 0;
 }
-
 

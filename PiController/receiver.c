@@ -3,13 +3,14 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <stdio.h>
 
 //set desired baud rate
-#define USART_BAUDRATE 4800
+#define USART_BAUDRATE 1200
 
 //define receiver parameters
-#define DUMMY 0x24	// synchro signal
-#define ADDR 0x75		// address 
+#define DUMMY 0x00	// synchro signal
+#define HEAD 0x4B		// header 
 
 //calculate UBRR value
 #define BAUD_PRESCALE (( F_CPU / ( USART_BAUDRATE * 16UL )) - 1)
@@ -32,69 +33,90 @@ void setup() {
 	//(1<<URSEL)|(0<<UMSEL)|(0<<UPM1)|(0<<UPM0)|(0<<USBS)|(0<<UCSZ2)|(1<<UCSZ01)|(1<<UCSZ00);	
 	
 	//Enable Receiver and Interrupt on receive complete
-	UCSR0B = (1 << RXEN0) | (1 << RXCIE0) | (1 << TXEN0); 
+	UCSR0B = (1 << RXEN0) | (1 << TXEN0);// | (1 << RXCIE0);
 	
 	//enable global interrupts
-	sei();
+	//sei();
 }
 
 uint8_t receive_byte() {
 	// Wait until a byte has been received
-	while((UCSR0A & (1 << RXC0)) == 0);
-    
+	while ((UCSR0A & (1 << RXC0)) == 0) {}
 	// Return received data
 	return UDR0;
 }
 
 void transmit_byte(uint8_t data) {
+	// Wait until previous byte has finished transmitting
 	while ((UCSR0A & (1 << UDRE0)) == 0) {}
+	// Transmit byte
 	UDR0 = data;
 }
 
-ISR(USART_RX_vect) {
-	uint8_t byte = receive_byte();
-	transmit_byte(byte);
-	
-	/**********************************************************
-	// Actual code for parsing the data
-
-	//define variables
-	uint8_t raddress, data, chk;//transmitter address
-	//receive destination address
-	raddress=USART_vReceiveByte();
-	//receive data
-	data=USART_vReceiveByte();
-	//receive checksum
-	chk=USART_vReceiveByte();
-	//compare received checksum with calculated
-	if(chk==(raddress+data))//if match perform operations
-	{
-		//if transmitter address match
-		if(raddress==RADDR)
-		{
-			if(on) {
-				PORTC|=(1<<0);//LED OFF
-				on = 0;
-			}
-			else {	
-				PORTC&=~(1<<0);//LED ON
-				on = 1;
-			}
-		}
+void write_serial(char *string, int size) {
+	// Send string to serial port
+	int i;
+	for (i = 0; i < size; i++) {
+		transmit_byte(string[i]);
 	}
-	**********************************************************/
 }
 
+/*ISR(USART_RX_vect) {
+	uint8_t byte = receive_byte();
+	transmit_byte(byte);
+
+	// Actual code for parsing the data
+		
+	//define variables
+	char buf[25];
+	int size;
+	uint8_t address, data, checksum;
+	
+	//receive destination address
+	//address = receive_byte();
+	//receive data
+	//data = receive_byte();
+	//receive checksum
+	//checksum = receive_byte();
+	
+	//compare received checksum with calculated
+	if (checksum == (address + data)) { //if match perform operations
+		//if transmitter address match
+		if (address == ADDR) {
+			size = sprintf(buf, "temp=%d\n\r", data);
+			write_serial(buf, size);
+		}
+	}
+}*/
+
 int main() {
-	unsigned char on = 0;
+	uint16_t data;
+	uint8_t checksum, chk;
+	char buf[25];
+	int size;
 
 	// Initialization function	
 	setup();
 	
 	while(1) {
-		// interrupts are doing most of the work
+		// Simple filter on header
+		if (receive_byte() == HEAD) {
+			// Receive next 3 bytes
+			data = receive_byte() << 8;
+			data |= receive_byte();
+			checksum = receive_byte();
+			// Check that data is valid
+			chk = data + (data >> 8);		
+			if (checksum == chk) {
+				// Print output to screen
+				size = sprintf(buf, "temp=%d\n\r", data);
+				write_serial(buf, size);
+			}
+		}
+	}
 
-		// Blink LED
+		// interrupts are doing most of the work
+		/* Blink LED
 		if (on) {
 			PORTB &= ~0x20;
 			on = 0;
@@ -105,8 +127,8 @@ int main() {
 		}
 		
 		// Delay CPU for 1 second
-		_delay_ms(1000);
-	}
+		_delay_ms(1000);*/
+
 	return 0;
 }
 
