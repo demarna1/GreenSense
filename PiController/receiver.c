@@ -17,13 +17,6 @@
 
 // Initializes ports, USART, and receive interrupts
 void setup() {
-	// LED off
-	//PORTC |= (1 << 0);	
-	
-	//define port C pin 0 as output; Set PortB as output
-	//DDRC=0x01;	
-	DDRB = 0xFF;	
-
 	//Set baud rate
 	UBRR0H = (BAUD_PRESCALE >> 8);	//high byte
 	UBRR0L = BAUD_PRESCALE;			//low byte
@@ -34,9 +27,6 @@ void setup() {
 	
 	//Enable Receiver and Interrupt on receive complete
 	UCSR0B = (1 << RXEN0) | (1 << TXEN0);// | (1 << RXCIE0);
-	
-	//enable global interrupts
-	//sei();
 }
 
 uint8_t receive_byte() {
@@ -61,36 +51,8 @@ void write_serial(char *string, int size) {
 	}
 }
 
-/*ISR(USART_RX_vect) {
-	uint8_t byte = receive_byte();
-	transmit_byte(byte);
-
-	// Actual code for parsing the data
-		
-	//define variables
-	char buf[25];
-	int size;
-	uint8_t address, data, checksum;
-	
-	//receive destination address
-	//address = receive_byte();
-	//receive data
-	//data = receive_byte();
-	//receive checksum
-	//checksum = receive_byte();
-	
-	//compare received checksum with calculated
-	if (checksum == (address + data)) { //if match perform operations
-		//if transmitter address match
-		if (address == ADDR) {
-			size = sprintf(buf, "temp=%d\n\r", data);
-			write_serial(buf, size);
-		}
-	}
-}*/
-
 int main() {
-	uint16_t data;
+	uint16_t temp, humid, soil;
 	uint8_t checksum, chk;
 	char buf[25];
 	int size;
@@ -101,33 +63,29 @@ int main() {
 	while(1) {
 		// Simple filter on header
 		if (receive_byte() == HEAD) {
-			// Receive next 3 bytes
-			data = receive_byte() << 8;
-			data |= receive_byte();
+			// Receive next remaining bytes
+			temp = receive_byte() << 8;
+			temp |= receive_byte();
+			humid = receive_byte() << 8;
+			humid |= receive_byte();
+			soil = receive_byte() << 8;
+			soil |= receive_byte();
 			checksum = receive_byte();
+			// Print output to screen
+			size = sprintf(buf, "temp=%d\n", temp);
+			write_serial(buf, size);
+			size = sprintf(buf, "humid=%d\n", humid);
+			write_serial(buf, size);
+			size = sprintf(buf, "soil=%d\n", soil);
+			write_serial(buf, size);
 			// Check that data is valid
-			chk = data + (data >> 8);		
+			chk = temp + (temp >> 8);		
 			if (checksum == chk) {
-				// Print output to screen
-				size = sprintf(buf, "temp=%d\n\r", data);
+				size = sprintf(buf, "Chk is good.\n\r");
 				write_serial(buf, size);
 			}
 		}
 	}
-
-		// interrupts are doing most of the work
-		/* Blink LED
-		if (on) {
-			PORTB &= ~0x20;
-			on = 0;
-		} 
-		else {
-			PORTB |= 0x20;
-			on = 1;
-		}
-		
-		// Delay CPU for 1 second
-		_delay_ms(1000);*/
 
 	return 0;
 }

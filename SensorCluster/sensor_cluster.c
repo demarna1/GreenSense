@@ -43,7 +43,7 @@ void setup() {
 	UBRR0H = (BAUD_PRESCALE >> 8);
 	UBRR0L = BAUD_PRESCALE;
 
-	// Use AVcc with external capacitor at AREF pin? Not sure if needed
+	// Use AVcc with external capacitor at AREF pin: Capacitor needed?
 	ADMUX |= 0x40;
 	// Enable ADC and set prescalar for ADC clock
 	ADCSRA |= (1 << ADEN);
