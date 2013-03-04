@@ -5,32 +5,46 @@
 #include <stdio.h>
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
-// included by <termios.h> 
-#define BAUDRATE B1200            
+// included by <termios.h>
+#define BAUDRATE B1200
 // change this definition for the correct port
-#define MODEMDEVICE "/dev/ttyACM0"
+#define MODEMDEVICE "/dev/ttyAMA0"
 // POSIX compliant source
-#define _POSIX_SOURCE 1 
+#define _POSIX_SOURCE 1
+
+#define HEAD 0x4B
+
+unsigned int read_data(int fd) {
+	unsigned char buf;
+	unsigned int data;
+	read(fd, buf, 1);
+	data = buf;
+	read(fd, buf, 1);
+	data |= (buf << 8);
+	return data;
+}
 
 main() {
-	int fd,c, res;
+	int fd, c, res, size;
 	struct termios oldtio,newtio;
 	char buf[255];
-	
-	/* 
+	//char buf;
+	unsigned int temp, humid, soil;
+
+	/*
 	Open modem device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
 	*/
-	fd = open(MODEMDEVICE, O_RDWR | O_NOCTTY ); 
+	fd = open(MODEMDEVICE, O_RDWR | O_NOCTTY );
 	if (fd < 0) {
-		perror(MODEMDEVICE); 
-		exit(-1); 
+		perror(MODEMDEVICE);
+		exit(-1);
 	}
 
 	tcgetattr(fd,&oldtio); /* save current serial port settings */
 	bzero(&newtio, sizeof(newtio)); /* clear struct for new port settings */
 
-	/* 
+	/*
 	BAUDRATE: Set bps rate. You could also use cfsetispeed and cfsetospeed.
 	CRTSCTS : output hardware flow control (only used if the cable has
 		  all necessary lines. See sect. 7 of Serial-HOWTO)
@@ -59,12 +73,12 @@ main() {
 	*/
 	newtio.c_lflag = ICANON;
 
-	/* 
-	initialize all control characters 
+	/*
+	initialize all control characters
 	default values can be found in /usr/include/termios.h, and are given
 	in the comments, but we don't need them here
 	*/
-	newtio.c_cc[VINTR]    = 0;     /* Ctrl-c */ 
+	newtio.c_cc[VINTR]    = 0;     /* Ctrl-c */
 	newtio.c_cc[VQUIT]    = 0;     /* Ctrl-\ */
 	newtio.c_cc[VERASE]   = 0;     /* del */
 	newtio.c_cc[VKILL]    = 0;     /* @ */
@@ -72,7 +86,7 @@ main() {
 	newtio.c_cc[VTIME]    = 0;     /* inter-character timer unused */
 	newtio.c_cc[VMIN]     = 1;     /* blocking read until 1 character arrives */
 	newtio.c_cc[VSWTC]    = 0;     /* '\0' */
-	newtio.c_cc[VSTART]   = 0;     /* Ctrl-q */ 
+	newtio.c_cc[VSTART]   = 0;     /* Ctrl-q */
 	newtio.c_cc[VSTOP]    = 0;     /* Ctrl-s */
 	newtio.c_cc[VSUSP]    = 0;     /* Ctrl-z */
 	newtio.c_cc[VEOL]     = 0;     /* '\0' */
@@ -82,28 +96,42 @@ main() {
 	newtio.c_cc[VLNEXT]   = 0;     /* Ctrl-v */
 	newtio.c_cc[VEOL2]    = 0;     /* '\0' */
 
-	/* 
+	/*
 	now clean the modem line and activate the settings for the port
 	*/
 	tcflush(fd, TCIFLUSH);
 	tcsetattr(fd,TCSANOW,&newtio);
 
+	printf("Starting reception.\n");
+
 	/*
 	terminal settings done, now handle input
-	In this example, inputting a 'z' at the beginning of a line will 
+	In this example, inputting a 'z' at the beginning of a line will
 	exit the program.
 	*/
 	while (1) {     /* loop until we have a terminating condition */
-		/* read blocks program execution until a line terminating character is 
+		/* read blocks program execution until a line terminating character is
 		input, even if more than 255 chars are input. If the number
 		of characters read is smaller than the number of chars available,
 		subsequent reads will return the remaining chars. res will be set
 		to the actual number of characters actually read */
-		res = read(fd,buf,255); 
-		buf[res]=0;             /* set end of string, so we can printf */
+		res = read(fd,buf,255);
+		/*if (buf == HEAD) {
+			temp = read_data(fd);
+			humid = read_data(fd);
+			soil = read_data(fd);
+			read(fd, buf, 1);
+
+			//Print output to screen
+			printf("temp = %d\n", temp);
+			printf("humid = %d\n", humid);
+			printf("soil = %d\n", soil);
+		}*/
+
+		buf[res]=0;             // set end of string, so we can printf
 		printf("%s", buf);
 	}
-	
+
 	/* restore the old port settings */
 	tcsetattr(fd,TCSANOW,&oldtio);
 }
