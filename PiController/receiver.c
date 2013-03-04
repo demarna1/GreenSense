@@ -63,7 +63,7 @@ int main() {
 	while(1) {
 		// Simple filter on header
 		if (receive_byte() == HEAD) {
-			// Receive next remaining bytes
+			// Receive remaining bytes
 			temp = receive_byte() << 8;
 			temp |= receive_byte();
 			humid = receive_byte() << 8;
@@ -71,17 +71,19 @@ int main() {
 			soil = receive_byte() << 8;
 			soil |= receive_byte();
 			checksum = receive_byte();
+			
 			// Print output to screen
-			size = sprintf(buf, "temp=%d\n", temp);
+			size = sprintf(buf, "temp=%d\n\r", temp);
 			write_serial(buf, size);
-			size = sprintf(buf, "humid=%d\n", humid);
+			size = sprintf(buf, "humid=%d\n\r", humid);
 			write_serial(buf, size);
-			size = sprintf(buf, "soil=%d\n", soil);
+			size = sprintf(buf, "soil=%d\n\r", soil);
 			write_serial(buf, size);
+			
 			// Check that data is valid
-			chk = temp + (temp >> 8);		
+			chk = temp + humid + soil;		
 			if (checksum == chk) {
-				size = sprintf(buf, "Chk is good.\n\r");
+				size = sprintf(buf, "Chk is good.\n\n\r");
 				write_serial(buf, size);
 			}
 		}

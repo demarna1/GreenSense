@@ -71,7 +71,8 @@ void write_serial(char *string, int size) {
 void send_packet(uint16_t temp, uint16_t humid, uint16_t soil) {
 	// Transmit each portion of message
 	transmit_byte(DUMMY);		// 0x00 - Synchro
-	transmit_byte(DUMMY);		// 0x00 - Synchro
+	transmit_byte(DUMMY);
+	transmit_byte(DUMMY);
 	transmit_byte(HEAD);		// 0x4B - Header
 	transmit_byte(temp >> 8);	// High byte of temp
 	transmit_byte(temp);		// Low byte of temp
@@ -80,12 +81,12 @@ void send_packet(uint16_t temp, uint16_t humid, uint16_t soil) {
 	transmit_byte(soil >> 8);	// High byte of soil
 	transmit_byte(soil);		// Low byte of soil
 	// Checksum of data
-	transmit_byte(temp + (temp >> 8));	
+	transmit_byte(temp + humid + soil);	
 }
 
 uint16_t read_temp() {
 	// Variables	
-	uint8_t low, high;
+	//uint8_t low, high;
 
 	// Choose to read from ADC0 (pin 23)
 	ADMUX = 0x40;
@@ -97,14 +98,15 @@ uint16_t read_temp() {
 	while (ADCSRA & (1 << ADSC)) {}
 
 	// Pull values from ADC register
-	low = ADCL;
-	high = ADCH;
-	return (high << 8) | low;
+	//low = ADCL;
+	//high = ADCH;
+	//return (high << 8) | low;
+	return ADC;
 }
 
 uint16_t read_soil() {
 	// Variables	
-	uint8_t low, high;
+	//uint8_t low, high;
 
 	// Choose to read from ADC2 (pin 25)
 	ADMUX = 0x42;
@@ -116,9 +118,9 @@ uint16_t read_soil() {
 	while (ADCSRA & (1 << ADSC)) {}
 
 	// Pull values from ADC register
-	low = ADCL;
-	high = ADCH;
-	return (high << 8) | low;
+	//low = ADCL;
+	//high = ADCH;
+	return ADC; //(high << 8) | low;
 }
 
 // Interrupt occurs on positive edges
@@ -131,6 +133,7 @@ ISR(TIMER1_CAPT_vect) {
 int main (void) {
 	// Initialize variables
 	uint16_t temp_raw, humid_raw, soil_raw;
+	int i;
 
 	/*************************
 	// VARIABLES FOR DEBUGGING
@@ -143,14 +146,14 @@ int main (void) {
 
 	while(1) {
 
-		// Activate circuit - switch is active low
-		// Set Pin 19 low (on ATMega328p)	
-		PORTB &= ~0x20;	
+		// Activate circuit - switch is active high
+		// Set Pin 19 high (on ATMega328p)	
+		PORTB |= 0x20;
 
-		// Turn on internal timer1
+		// Turn on internal timer1 used for frequency
 		TCCR1B |= (1 << CS10);
 		
-		// Delay allows humidity capactior to adjust after standby
+		// Delay allows humidity capacitor to adjust after standby
 		_delay_ms(4000);
 
 		// Read and store temperature, humidity, and soil moisture
@@ -158,8 +161,18 @@ int main (void) {
 		humid_raw = period;
 		soil_raw = read_soil();
 
+		// Turn off internal timer1 used for frequency
+		TCCR1B &= ~(1 << CS10);
+ 
 		// Send sensor data packet
 		send_packet(temp_raw, humid_raw, soil_raw);
+
+		// Wait until last byte is sent
+		while ((UCSR0A & (1 << UDRE0)) == 0) {}
+
+		// Deactivate circuit to save power
+		// Set PB5 (pin 19) low
+		PORTB &= ~0x20;
 
 		/***************************************************
 		// USED ONLY FOR DEBUGGING - Send output to PC
@@ -171,15 +184,8 @@ int main (void) {
 		write_serial(buf, size);
 		***************************************************/
 
-		// Turn off internal timer1
-		TCCR1B &= ~(1 << CS10);
-
-		// Deactivate circuit to save power
-		// Set PB5 (pin 19) high
-		PORTB |= 0x20;
-
-		// Delay CPU for 2 seconds
-		_delay_ms(2000);
+		// Delay CPU for 3 seconds
+		_delay_ms(3000);
 	}
 	return 0;
 }
