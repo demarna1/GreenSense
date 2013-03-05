@@ -10,7 +10,7 @@
 
 //define receiver parameters
 #define DUMMY 0x00	// synchro signal
-#define HEAD 0x4B		// header 
+#define HEAD 0x4B	// header
 
 //calculate UBRR value
 #define BAUD_PRESCALE (( F_CPU / ( USART_BAUDRATE * 16UL )) - 1)
@@ -20,11 +20,11 @@ void setup() {
 	//Set baud rate
 	UBRR0H = (BAUD_PRESCALE >> 8);	//high byte
 	UBRR0L = BAUD_PRESCALE;			//low byte
-	
+
 	// Data frame format: asynchronous mode, no parity, 1 stop bit, 8 bit size
 	UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);
-	//(1<<URSEL)|(0<<UMSEL)|(0<<UPM1)|(0<<UPM0)|(0<<USBS)|(0<<UCSZ2)|(1<<UCSZ01)|(1<<UCSZ00);	
-	
+	//(1<<URSEL)|(0<<UMSEL)|(0<<UPM1)|(0<<UPM0)|(0<<USBS)|(0<<UCSZ2)|(1<<UCSZ01)|(1<<UCSZ00);
+
 	//Enable Receiver and Interrupt on receive complete
 	UCSR0B = (1 << RXEN0) | (1 << TXEN0);// | (1 << RXCIE0);
 }
@@ -57,9 +57,9 @@ int main() {
 	char buf[25];
 	int size;
 
-	// Initialization function	
+	// Initialization function
 	setup();
-	
+
 	while(1) {
 		// Simple filter on header
 		if (receive_byte() == HEAD) {
@@ -71,7 +71,7 @@ int main() {
 			soil = receive_byte() << 8;
 			soil |= receive_byte();
 			checksum = receive_byte();
-			
+
 			// Print output to screen
 			size = sprintf(buf, "temp=%d\n\r", temp);
 			write_serial(buf, size);
@@ -79,9 +79,9 @@ int main() {
 			write_serial(buf, size);
 			size = sprintf(buf, "soil=%d\n\r", soil);
 			write_serial(buf, size);
-			
+
 			// Check that data is valid
-			chk = temp + humid + soil;		
+			chk = temp + humid + soil;
 			if (checksum == chk) {
 				size = sprintf(buf, "Chk is good.\n\n\r");
 				write_serial(buf, size);
