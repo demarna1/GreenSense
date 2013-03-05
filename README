@@ -12,9 +12,12 @@ ABOUT:
 		Ryan Jones
 
 GIT:
-	git add [rm] file.c
-	git commit -m "Commit Message"
-	git push -u origin master
+	New:
+		git clone https://github.com/demarna1/GreenSense.git
+	Update:
+		git add [rm] file.c
+		git commit -m "Commit Message"
+		git push -u origin master
 
 FLASHING:
 	1. make

@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <avr/io.h>
+#include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
@@ -21,12 +22,31 @@
 // Define global variables for frequency capture
 uint16_t new_edge = 0, prev_edge = 0, period = 0;
 
+/* This setup function configures the following features:
+ *	Sleep Mode
+ * 	Watchdog Timer
+ *	Port C
+ * 	Port B
+ * 	Input capture
+ * 	USART
+ *	Baud Prescale
+ *	ADC
+ *	Global Interrupts
+ */
 void setup() {
+	// Choose to power down chip during sleep
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+	
+	// Enable watchdog timer interrupt
+	WDTCSR |= (1 << WDIE);
+	// Prescalar for watchdog time-out
+	WDTCSR |= (1 << WDP3) | (1 << WDP0);
+
 	// Set C as input for ADC
 	DDRC = 0x00;
 	// Set PB0 (pin 14) as input capture pin (ICP) and
 	// set PB5 (pin 19) as output for digital control
-	DDRB = (1 << DDB5);
+	DDRB |= (1 << DDB5);
 
 	// Capture pulse on rising edge
 	TCCR1B |= (1 << ICES1);
@@ -130,6 +150,11 @@ ISR(TIMER1_CAPT_vect) {
 	prev_edge = new_edge;
 }
 
+// Watchdog timer interrupt to wake from sleep
+ISR(WDT_vect) {
+	// What goes here?
+}
+
 int main (void) {
 	// Initialize variables
 	uint16_t temp_raw, humid_raw, soil_raw;
@@ -168,7 +193,8 @@ int main (void) {
 		send_packet(temp_raw, humid_raw, soil_raw);
 
 		// Wait until last byte is sent
-		while ((UCSR0A & (1 << UDRE0)) == 0) {}
+		_delay_ms(100);
+		//while ((UCSR0A & (1 << UDRE0)) == 0) {}
 
 		// Deactivate circuit to save power
 		// Set PB5 (pin 19) low
@@ -183,6 +209,11 @@ int main (void) {
 		size = sprintf(buf, "soilraw=%d\n\r", soil_raw);
 		write_serial(buf, size);
 		***************************************************/
+
+		// Power down the Arduino for X seconds
+		sleep_enable();
+		sleep_mode();
+		sleep_disable();
 
 		// Delay CPU for 3 seconds
 		_delay_ms(3000);
