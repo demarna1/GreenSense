@@ -1,5 +1,5 @@
 // CPU clock speed used for delays and baud rate
-#define F_CPU 15000000UL
+#define F_CPU 16000000UL
 
 // Include directories
 #include <stdio.h>
@@ -8,6 +8,7 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <avr/wdt.h>
 #include <util/delay.h>
 
 // Define baud rate to be used
@@ -20,10 +21,9 @@
 #define BAUD_PRESCALE (( F_CPU / ( USART_BAUDRATE * 16UL )) - 1)
 
 // Define global variables for frequency capture
-uint16_t new_edge = 0, prev_edge = 0, period = 0;
+uint16_t new_edge = 0, prev_edge = 0, period = 0, counter = 0;
 
 /* This setup function configures the following features:
- *	Sleep Mode
  * 	Watchdog Timer
  *	Port C
  * 	Port B
@@ -34,14 +34,6 @@ uint16_t new_edge = 0, prev_edge = 0, period = 0;
  *	Global Interrupts
  */
 void setup() {
-	// Choose to power down chip during sleep
-	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-	
-	// Enable watchdog timer interrupt
-	WDTCSR |= (1 << WDIE);
-	// Prescalar for watchdog time-out
-	WDTCSR |= (1 << WDP3) | (1 << WDP0);
-
 	// Set C as input for ADC
 	DDRC = 0x00;
 	// Set PB0 (pin 14) as input capture pin (ICP) and
@@ -56,7 +48,6 @@ void setup() {
 	// USART setup for wireless or debugging
 	UCSR0B |= (1 << TXEN0);
 	// Datasheet says to use UMSEL bit also, but it doesn't work
-	//UCSR0C |= (1 << UMSEL00) | (1 << UCSZ01) | (1 << UCSZ00);
 	UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);
 
 	// Set baud prescale value used for timing
@@ -105,9 +96,6 @@ void send_packet(uint16_t temp, uint16_t humid, uint16_t soil) {
 }
 
 uint16_t read_temp() {
-	// Variables	
-	//uint8_t low, high;
-
 	// Choose to read from ADC0 (pin 23)
 	ADMUX = 0x40;
 
@@ -118,16 +106,10 @@ uint16_t read_temp() {
 	while (ADCSRA & (1 << ADSC)) {}
 
 	// Pull values from ADC register
-	//low = ADCL;
-	//high = ADCH;
-	//return (high << 8) | low;
 	return ADC;
 }
 
 uint16_t read_soil() {
-	// Variables	
-	//uint8_t low, high;
-
 	// Choose to read from ADC2 (pin 25)
 	ADMUX = 0x42;
 
@@ -138,9 +120,7 @@ uint16_t read_soil() {
 	while (ADCSRA & (1 << ADSC)) {}
 
 	// Pull values from ADC register
-	//low = ADCL;
-	//high = ADCH;
-	return ADC; //(high << 8) | low;
+	return ADC;
 }
 
 // Interrupt occurs on positive edges
@@ -152,19 +132,21 @@ ISR(TIMER1_CAPT_vect) {
 
 // Watchdog timer interrupt to wake from sleep
 ISR(WDT_vect) {
-	// What goes here?
+	// Arduino is now awake, will continue where it left
+	// off after this.
+	wdt_disable();
+	counter++;
 }
 
 int main (void) {
 	// Initialize variables
 	uint16_t temp_raw, humid_raw, soil_raw;
-	int i;
 
-	/*************************
+	/*************************/
 	// VARIABLES FOR DEBUGGING
 	int size;
 	char buf[25];
-	*************************/
+	/*************************/
 
 	// Initialization function
 	setup();
@@ -210,13 +192,30 @@ int main (void) {
 		write_serial(buf, size);
 		***************************************************/
 
-		// Power down the Arduino for X seconds
+		//PUT SYSTEM TO SLEEP
+		// Clear reset flag
+		MCUSR = 0;//&= ~(1 << WDRF);
+		// Enable changing of Watchdog prescalar bits
+		WDTCSR |= (1 << WDCE) | (1 << WDE);
+		// Prescalar for watchdog time-out (8 seconds)
+		WDTCSR |= (1 << WDIE) | (1 << WDP3) | (1 << WDP0);
+		// Enable watchdog timer interrupt
+		//WDTCSR |= (1 << WDIE);
+		size = sprintf(buf, "WDTCSR1=%c\n\r", WDTCSR);
+		write_serial(buf, size);
+		// Pat the dog
+		wdt_reset();
+		size = sprintf(buf, "WDTCSR2=%c\n\r", WDTCSR);
+		write_serial(buf, size);	
+		// Choose to power down chip during sleep
+		set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+		// Power down the Arduino for 8 seconds
 		sleep_enable();
-		sleep_mode();
+		sleep_cpu(); //sleep_mode();
 		sleep_disable();
-
-		// Delay CPU for 3 seconds
-		_delay_ms(3000);
+		size = sprintf(buf, "count=%d\n\r", counter);
+		write_serial(buf, size);
+		//END SLEEP CODE
 	}
 	return 0;
 }
