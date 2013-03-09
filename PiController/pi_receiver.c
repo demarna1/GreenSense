@@ -8,6 +8,10 @@
 #define HEAD 0x4B
 #define DATA_SIZE 7
 
+void python_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
+	// Execute a python script and pipe data to it.
+}
+
 void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index) {
 	// Declare variables
 	unsigned char new_buffer[DATA_SIZE];
@@ -49,6 +53,8 @@ void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index)
 		printf("temp = %d\n", temp);
 		printf("humid = %d\n", humid);
 		printf("soil = %d\n\n", soil);
+		// Upload data via python script
+		python_upload(temp, humid, soil);
 	}
 	else {
 		printf("Bad checksum\n");
@@ -96,10 +102,14 @@ int main() {
 					}
 				}
 			}
+		} 
+		else {
+			printf("Filestream is invalid.\n");
 		}
 	}
 
+	// Should never get here but close file descriptor as a best practice
 	close(uart0_filestream);
-
 	return 0;
 }
+
