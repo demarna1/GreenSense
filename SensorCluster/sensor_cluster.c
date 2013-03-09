@@ -1,5 +1,5 @@
 // CPU clock speed used for delays and baud rate
-#define F_CPU 16000000UL
+#define F_CPU 15000000UL
 
 // Include directories
 #include <stdio.h>
@@ -20,10 +20,15 @@
 
 #define BAUD_PRESCALE (( F_CPU / ( USART_BAUDRATE * 16UL )) - 1)
 
+// Define pins for analog to digital converter
+#define TEMP_PIN 0x40	// ADC0 - pin 23
+#define SOIL_PIN 0x42	// ADC2 - pin 25
+
 // Define global variables for frequency capture
-uint16_t new_edge = 0, prev_edge = 0, period = 0, counter = 0;
+uint16_t new_edge = 0, prev_edge = 0, period = 0;
 
 /* This setup function configures the following features:
+ *	Sleep Mode
  * 	Watchdog Timer
  *	Port C
  * 	Port B
@@ -34,6 +39,19 @@ uint16_t new_edge = 0, prev_edge = 0, period = 0, counter = 0;
  *	Global Interrupts
  */
 void setup() {
+	// Choose to power down chip during sleep
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+
+	// Setup Watchdog - needed to wake from sleep mode
+	// Set watchdog to zero
+	wdt_reset(); 
+	// Enable changing of Watchdog prescalar bits
+	WDTCSR |= (1 << WDCE) | (1 << WDE);
+	// Prescalar for watchdog time-out (8 seconds) and clear WDCE
+	WDTCSR = (1 << WDE) | (1 << WDP3) | (1 << WDP0); 
+	// Enable watchdog interrupt - Why isn't this needed?
+	//WDTCSR = (1 << WDIE);
+
 	// Set C as input for ADC
 	DDRC = 0x00;
 	// Set PB0 (pin 14) as input capture pin (ICP) and
@@ -95,31 +113,14 @@ void send_packet(uint16_t temp, uint16_t humid, uint16_t soil) {
 	transmit_byte(temp + humid + soil);	
 }
 
-uint16_t read_temp() {
-	// Choose to read from ADC0 (pin 23)
-	ADMUX = 0x40;
-
+uint16_t perform_adc(uint8_t pin) {
+	// Choose to read from specified ADC pin
+	ADMUX = pin;
 	// Start A2D Conversions
 	ADCSRA |= (1 << ADSC); 
-
 	// Wait until complete
 	while (ADCSRA & (1 << ADSC)) {}
-
-	// Pull values from ADC register
-	return ADC;
-}
-
-uint16_t read_soil() {
-	// Choose to read from ADC2 (pin 25)
-	ADMUX = 0x42;
-
-	// Start A2D Conversions
-	ADCSRA |= (1 << ADSC); 
-
-	// Wait until complete
-	while (ADCSRA & (1 << ADSC)) {}
-
-	// Pull values from ADC register
+	// Pull value from ADC register
 	return ADC;
 }
 
@@ -134,25 +135,23 @@ ISR(TIMER1_CAPT_vect) {
 ISR(WDT_vect) {
 	// Arduino is now awake, will continue where it left
 	// off after this.
-	wdt_disable();
-	counter++;
 }
 
 int main (void) {
 	// Initialize variables
 	uint16_t temp_raw, humid_raw, soil_raw;
+	int i;
 
-	/*************************/
+	/*************************
 	// VARIABLES FOR DEBUGGING
 	int size;
 	char buf[25];
-	/*************************/
+	*************************/
 
 	// Initialization function
 	setup();
 
 	while(1) {
-
 		// Activate circuit - switch is active high
 		// Set Pin 19 high (on ATMega328p)	
 		PORTB |= 0x20;
@@ -164,9 +163,9 @@ int main (void) {
 		_delay_ms(4000);
 
 		// Read and store temperature, humidity, and soil moisture
-		temp_raw = read_temp();
+		temp_raw = perform_adc(TEMP_PIN);
 		humid_raw = period;
-		soil_raw = read_soil();
+		soil_raw = perform_adc(SOIL_PIN);
 
 		// Turn off internal timer1 used for frequency
 		TCCR1B &= ~(1 << CS10);
@@ -192,30 +191,14 @@ int main (void) {
 		write_serial(buf, size);
 		***************************************************/
 
-		//PUT SYSTEM TO SLEEP
-		// Clear reset flag
-		MCUSR = 0;//&= ~(1 << WDRF);
-		// Enable changing of Watchdog prescalar bits
-		WDTCSR |= (1 << WDCE) | (1 << WDE);
-		// Prescalar for watchdog time-out (8 seconds)
-		WDTCSR |= (1 << WDIE) | (1 << WDP3) | (1 << WDP0);
-		// Enable watchdog timer interrupt
-		//WDTCSR |= (1 << WDIE);
-		size = sprintf(buf, "WDTCSR1=%c\n\r", WDTCSR);
-		write_serial(buf, size);
-		// Pat the dog
-		wdt_reset();
-		size = sprintf(buf, "WDTCSR2=%c\n\r", WDTCSR);
-		write_serial(buf, size);	
-		// Choose to power down chip during sleep
-		set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-		// Power down the Arduino for 8 seconds
-		sleep_enable();
-		sleep_cpu(); //sleep_mode();
-		sleep_disable();
-		size = sprintf(buf, "count=%d\n\r", counter);
-		write_serial(buf, size);
-		//END SLEEP CODE
+		// Power down for 1*8=8 seconds 
+		// DOESN'T WORK - ALWAYS 8 SECONDS!
+		for (i = 0; i < 1; i++) { 
+			// Reset watchdog timer to zero before sleeping
+			wdt_reset();
+			// Power down the system until watchdog wakeup (8 sec)
+			sleep_mode();
+		}
 	}
 	return 0;
 }
