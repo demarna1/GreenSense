@@ -7,6 +7,12 @@ ABOUT:
 		Receive data wirelessly via RX434. Determine if the sensor
 		readings meet the specification. Upload the data to Lehigh's 
 		web server.
+	Receiver:
+		Deprecated receiver code for use with the Arduino.
+	WWW-data:
+		Web page residing on Lehigh's server which acts as a user
+		interface. Display and store the uploaded data and provide 
+		ability to change greenhouse settings. 
 	Contributors: 
 		Noah DeMarco
 		Ryan Jones
