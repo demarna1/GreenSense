@@ -90,22 +90,16 @@ int main() {
 		if (uart0_filestream != -1) {
 			// Read up to 256 bytes into rx_buffer
 			rx_length = read(uart0_filestream, (void*)rx_buffer, 256);
-			// Check to see if any bytes successfully read
-			if (rx_length > 0) {
-				// Iterate through received bytes
-				for (i = 0; i < rx_length; i++) {
-					// Check for matching header byte
-					if (rx_buffer[i] == HEAD) {
-						read_remaining_bytes(uart0_filestream, rx_buffer, rx_length, i+1);
-						// Breaks out of for loop
-						break;
-					}
+			// Iterate through received bytes
+			for (i = 0; i < rx_length; i++) {
+				// Check for matching header byte
+				if (rx_buffer[i] == HEAD) {
+					read_remaining_bytes(uart0_filestream, rx_buffer, rx_length, i+1);
+					// Breaks out of for loop
+					break;
 				}
 			}
 		} 
-		else {
-			printf("Filestream is invalid.\n");
-		}
 	}
 
 	// Should never get here but close file descriptor as a best practice

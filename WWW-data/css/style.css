@@ -1,0 +1,52 @@
+html, body {
+    margin: 0px;
+    padding: 0px;
+    height: parent;
+}
+
+h1 {
+    font-size: 2.5em;
+}
+
+h2 {
+    color: #555;
+}
+
+ul#data_list {
+    list-style: none;
+}
+
+ul#data_list li {
+    padding: 10px;
+}
+
+div#data_holder {
+    text-align: center;
+    border-top: solid 1px #000;
+    border-bottom: solid 1px #000;
+}
+
+.green {
+    color: #1a1;
+}
+
+.center {
+    text-align: center;
+}
+
+.float_right {
+    float: right;
+    height: 200px;
+    width: 200px;
+}
+
+div#panel {
+    width: 800px;
+    -webkit-box-shadow: 0px 0px 5px #555;
+    margin: auto;
+    min-height: 100%;
+}
+
+div#content {
+    padding: 15px;
+}
