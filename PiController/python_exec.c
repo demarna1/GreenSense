@@ -36,7 +36,7 @@ int main() {
 	// This block contains the parent code
 	else {
 		// Wait for python script to finish
-		printf("C: From parent. Waiting...\n");
+		printf("C: Waiting...\n");
 		waitpid(-1, &status, 0);
 		printf("C: Script finished successfully.\n");
 	} 

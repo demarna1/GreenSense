@@ -32,7 +32,7 @@ int python_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
 	// Child's process id will be zero
 	else if (pid == 0) {
 		// Execute python script; won't return if successful
-		if (execl("./upload.py", "./upload.py", NULL) == -1) {
+		if (execl(script, script, data_arg, NULL) == -1) {
 			// Unsuccessful execution
 			fprintf(stderr, "C: Error executing ./upload.py.\n");
 			return -1;
