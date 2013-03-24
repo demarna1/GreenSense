@@ -9,19 +9,19 @@
 #define HEAD 0x4B
 #define DATA_SIZE 7
 
-// Execute a python script and pass data to it. Return -1 if unsuccessful, 
+// Execute a bash script and pass data to it. Return -1 if unsuccessful, 
 // and 0 if successful.
-int python_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
+int bash_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
 	// Declare variables
 	int status;
 	pid_t pid;	
 	char data_arg[50];
-	char *script = "./upload.py";
+	char *script = "./upload.sh";
 
-	// Create argument array to be passed to python
+	// Create argument array to be passed to bash
 	sprintf(data_arg, "%d,%d,%d", temp, humid, soil);
 
-	// Fork a new process
+	// Fork a new process which will run bash script
 	pid = fork();
 	if (pid == -1) {
 		// Unable to fork a new process
@@ -31,17 +31,17 @@ int python_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
 
 	// Child's process id will be zero
 	else if (pid == 0) {
-		// Execute python script; won't return if successful
+		// Execute bash script; won't return if successful
 		if (execl(script, script, data_arg, NULL) == -1) {
 			// Unsuccessful execution
-			fprintf(stderr, "C: Error executing ./upload.py.\n");
+			fprintf(stderr, "C: Error executing ./upload.sh.\n");
 			return -1;
 		}
 	}
 	
 	// This block contains the parent code
 	else {
-		// Wait for python script to finish
+		// Wait for bash script to finish
 		printf("C: Waiting...\n");
 		waitpid(-1, &status, 0);
 		printf("C: Script finished successfully.\n");
@@ -92,9 +92,9 @@ void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index)
 		printf("temp = %d\n", temp);
 		printf("humid = %d\n", humid);
 		printf("soil = %d\n", soil);
-		// Upload data via python script
-		if (python_upload(temp, humid, soil) == 0) {
-			printf("Data sent to python.\n\n");
+		// Upload data via bash script
+		if (bash_upload(temp, humid, soil) == 0) {
+			printf("Data sent to bash script.\n\n");
 		} 
 		else {
 			printf("Data failed to upload.\n\n");
