@@ -1,4 +1,3 @@
-#!/opt/local/bin/php
 <!DOCTYPE html>
 <html>
   <head>
@@ -17,14 +16,13 @@
         </div>
         <div id="data_holder">
           <ul id="data_list">
-	  <?php
-	    echo "<li>Temp Humid Soil</li>";
-	    $datafile = fopen("/home/nad213/WWW-data/data.txt","r");
-	    while (($line = fgets($datafile)) !== false) {
-	      echo "<li>".$line."</li>";
-	    }
-	    fclose($datafile);
-	  ?></ul>
+	  <li>Temp Humid Soil</li><li>799,2444,800
+</li><li>799,2444,800
+</li><li>799,2444,800
+</li><li>799,2444,800
+</li><li>799,2444,800
+</li><li>799,2444,800
+</li></ul>
         </div>
       </div>
     </div>
