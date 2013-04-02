@@ -3,9 +3,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <wiringPi.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 //NOTES: Alt-92 for \; Alt-124 for |; \ for #
 
+#define GPIO_PIN_17 0
+#define GPIO_PIN_18 1
+#define ON 1
+#define OFF 0
 #define HEAD 0x4B
 #define DATA_SIZE 7
 
@@ -14,7 +21,7 @@
 int bash_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
 	// Declare variables
 	int status;
-	pid_t pid;	
+	pid_t pid;
 	char data_arg[50];
 	char *script = "./upload.sh";
 
@@ -38,14 +45,14 @@ int bash_upload(unsigned int temp, unsigned int humid, unsigned int soil) {
 			return -1;
 		}
 	}
-	
+
 	// This block contains the parent code
 	else {
 		// Wait for bash script to finish
 		printf("C: Waiting...\n");
 		waitpid(-1, &status, 0);
 		printf("C: Script finished successfully.\n");
-	} 
+	}
 
 	// Return successfully
 	return 0;
@@ -76,6 +83,10 @@ void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index)
 		}
 	}
 
+	// Data received, turn on LEDs
+	//digitalWrite(GPIO_PIN_17, ON);
+	//digitalWrite(GPIO_PIN_18, ON);
+
 	// All data has been received, place into variables
 	temp = data[0] << 8;
 	temp |= data[1];
@@ -95,7 +106,7 @@ void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index)
 		// Upload data via bash script
 		if (bash_upload(temp, humid, soil) == 0) {
 			printf("Data sent to bash script.\n\n");
-		} 
+		}
 		else {
 			printf("Data failed to upload.\n\n");
 		}
@@ -103,6 +114,10 @@ void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index)
 	else {
 		printf("Bad checksum\n");
 	}
+
+	// Done handling data, turn off LEDs
+	//digitalWrite(GPIO_PIN_17, OFF);
+	//digitalWrite(GPIO_PIN_18, OFF);
 }
 
 int main() {
@@ -110,6 +125,15 @@ int main() {
 	int uart0_filestream = -1;
 	int i, rx_length;
 	unsigned char rx_buffer[256];
+
+	/*if (wiringPiSetup() == -1) {
+		fprintf(stderr, "Error setting up wiring Pi library.\n");
+		exit(1);
+	}*/
+
+	// Set pins as output
+	//pinMode(0, OUTPUT);
+	//pinMode(1, OUTPUT);
 
 	// Open UART filestream
 	uart0_filestream = open("/dev/ttyAMA0", O_RDWR | O_NOCTTY | O_NDELAY);
@@ -121,7 +145,7 @@ int main() {
 	// Configure UART
 	struct termios options;
 	tcgetattr(uart0_filestream, &options);
-	// Sets BAUD rate and other options 
+	// Sets BAUD rate and other options
 	options.c_cflag = B1200 | CS8 | CLOCAL | CREAD;
 	options.c_iflag = IGNPAR | ICRNL;
 	options.c_oflag = 0;
@@ -140,13 +164,13 @@ int main() {
 			for (i = 0; i < rx_length; i++) {
 				// Check for matching header byte
 				if (rx_buffer[i] == HEAD) {
-					read_remaining_bytes(uart0_filestream, 
+					read_remaining_bytes(uart0_filestream,
 						rx_buffer, rx_length, i+1);
 					// Breaks out of for loop
 					break;
 				}
 			}
-		} 
+		}
 	}
 
 	// Should never get here but close file descriptor as a best practice
