@@ -12,18 +12,16 @@ h2 {
     color: #555;
 }
 
-ul#data_list {
-    list-style: none;
-}
-
-ul#data_list li {
-    padding: 10px;
+div#graph_holder {
+    min-width: 300px;
+    height: 300px;
+    margin: 0 auto;
 }
 
 div#data_holder {
     text-align: center;
-    border-top: solid 1px #000;
-    border-bottom: solid 1px #000;
+    /*border-top: solid 1px #000;*/
+    /*border-bottom: solid 1px #000;*/
 }
 
 .green {

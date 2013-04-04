@@ -1,3 +1,4 @@
+#!/opt/local/bin/php
 <!DOCTYPE html>
 <html>
   <head>
@@ -70,7 +71,19 @@
                 pointInterval: 24 * 3600 * 1000,
                 pointStart: Date.UTC(2006, 0, 01),
                 data: [
-98, 980                ]
+<?php
+  $datafile = fopen("/home/nad213/WWW-data/data.txt","r");
+  if (($line = fgets($datafile)) !== false) {
+    $terms = explode(",", $line);
+    echo $terms[1];
+  }
+  while (($line = fgets($datafile)) !== false) {
+    $terms = explode(",", $line);
+    echo ", ".$terms[1];
+  }
+  fclose($datafile);
+?>
+                ]
             }]
         });
     });
