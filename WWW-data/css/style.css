@@ -12,9 +12,21 @@ h2 {
     color: #555;
 }
 
-div#graph_holder {
-    min-width: 300px;
-    height: 300px;
+div#temp_graph {
+    width: 550px;
+    height: 325px;
+    margin: 0 auto;
+}
+
+div#humid_graph {
+    width: 550px;
+    height: 325px;
+    margin: 0 auto;
+}
+
+div#soil_graph {
+    width: 550px;
+    height: 325px;
     margin: 0 auto;
 }
 
@@ -39,7 +51,7 @@ div#data_holder {
 }
 
 div#panel {
-    width: 800px;
+    width: 700px;
     -webkit-box-shadow: 0px 0px 5px #555;
     margin: auto;
     min-height: 100%;
