@@ -1,5 +1,5 @@
 // CPU clock speed used for delays and baud rate
-#define F_CPU 15000000UL
+#define F_CPU 16000000UL
 
 // Include directories
 #include <stdio.h>
@@ -25,7 +25,7 @@
 #define SOIL_PIN 0x42	// ADC2 - pin 25
 
 // Define global variables for frequency capture
-uint16_t new_edge = 0, prev_edge = 0, period = 0;
+uint16_t new_edge = 0, prev_edge = 0, period = 0, total = 0;
 
 /* This setup function configures the following features:
  *	Sleep Mode
@@ -41,6 +41,11 @@ uint16_t new_edge = 0, prev_edge = 0, period = 0;
 void setup() {
 	// Choose to power down chip during sleep
 	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+
+	// MCU reset disable - THIS MAY BE SOLUTION
+	//?MCUSR &= ~(1<<WDRF);  
+                            
+   	//?WDTCSR = (1<<WDIF)|(1<<WDIE)|(1<<WDCE)|(1<<WDP3)|(1<<WDP0); 
 
 	// Setup Watchdog - needed to wake from sleep mode
 	// Set watchdog to zero
@@ -113,6 +118,7 @@ void send_packet(uint16_t temp, uint16_t humid, uint16_t soil) {
 	transmit_byte(temp + humid + soil);	
 }
 
+// Returns raw voltage reading (raw = (V/Vbatt) * 1024)
 uint16_t perform_adc(uint8_t pin) {
 	// Choose to read from specified ADC pin
 	ADMUX = pin;
@@ -122,6 +128,23 @@ uint16_t perform_adc(uint8_t pin) {
 	while (ADCSRA & (1 << ADSC)) {}
 	// Pull value from ADC register
 	return ADC;
+}
+
+// Returns period of humidity signal (p = Fcpu/f)
+uint16_t get_humidity() {
+	int i;
+	for (i = 0; i < 5; i++) {
+		// current range is 2461 (0%) -> 2989 (100%)
+		if (period > 2200 && period < 3200) {
+			// Data is good
+			return period;
+		}
+		// Data is bad; wait then try again			
+		_delay_ms(10);
+	}
+	// Data may not be good; it will need to be filtered 
+	// on receiver side
+	return period;
 }
 
 // Interrupt occurs on positive edges
@@ -142,11 +165,11 @@ int main (void) {
 	uint16_t temp_raw, humid_raw, soil_raw;
 	int i;
 
-	/*************************
+	/*************************/
 	// VARIABLES FOR DEBUGGING
 	int size;
 	char buf[25];
-	*************************/
+	/*************************/
 
 	// Initialization function
 	setup();
@@ -164,14 +187,14 @@ int main (void) {
 
 		// Read and store temperature, humidity, and soil moisture
 		temp_raw = perform_adc(TEMP_PIN);
-		humid_raw = period;
+		humid_raw = get_humidity();
 		soil_raw = perform_adc(SOIL_PIN);
 
 		// Turn off internal timer1 used for frequency
 		TCCR1B &= ~(1 << CS10);
  
 		// Send sensor data packet
-		send_packet(temp_raw, humid_raw, soil_raw);
+		//send_packet(temp_raw, humid_raw, soil_raw);
 
 		// Wait until last byte is sent
 		_delay_ms(100);
@@ -181,7 +204,7 @@ int main (void) {
 		// Set PB5 (pin 19) low
 		PORTB &= ~0x20;
 
-		/***************************************************
+		/***************************************************/
 		// USED ONLY FOR DEBUGGING - Send output to PC
 		size = sprintf(buf, "tempraw=%d\n\r", temp_raw);
 		write_serial(buf, size);
@@ -189,12 +212,18 @@ int main (void) {
 		write_serial(buf, size);
 		size = sprintf(buf, "soilraw=%d\n\r", soil_raw);
 		write_serial(buf, size);
-		***************************************************/
+		/***************************************************/
+
+		total++;
+		size = sprintf(buf, "total = %d\n\r", total);
+		write_serial(buf, size);
+
+		//_delay_ms(4000);
 
 		// Power down for 1*8=8 seconds 
 		// DOESN'T WORK - ALWAYS 8 SECONDS!
-		for (i = 0; i < 1; i++) { 
-			// Reset watchdog timer to zero before sleeping
+		// Reset watchdog timer to zero before sleeping
+		for (i = 0; i < 4; i++) {
 			wdt_reset();
 			// Power down the system until watchdog wakeup (8 sec)
 			sleep_mode();
