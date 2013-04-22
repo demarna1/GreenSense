@@ -235,7 +235,7 @@
   }
   while (($line = fgets($datafile)) !== false) {
     $terms = explode(",", $line);
-    echo ", ".$terms[3];
+    echo ", " . trim($terms[3]);
   }
   fclose($datafile);
 ?>
@@ -243,9 +243,7 @@
             }]
         });
     });
-
     </script>
-
   </head>
   <body>
     <div id="panel">
@@ -254,7 +252,47 @@
         <div class="center">
           <h1><span class="green">Green</span>Sense</h1>
           <h2>Greenhouse Automation & Sensing</h2>
+	  <h3>Current Greenhouse Environment</h3>
+	  <ul style="list-style: none;">
+<?php
+  $datafile = fopen("/home/nad213/WWW-data/data.txt","r");
+  $cursor = -1;
+  $line = '';
+
+  fseek($datafile, $cursor, SEEK_END);
+  $char = fgetc($datafile);
+
+  while ($char === "\n" || $char === "\r") {
+    fseek($datafile, $cursor--, SEEK_END);
+    $char = fgetc($datafile);
+  }
+
+  while ($char !== false && $char !== "\n" && $char !== "\r") {
+    $line = $char . $line;
+    fseek($datafile, $cursor--, SEEK_END);
+    $char = fgetc($datafile);
+  }
+
+  $terms = explode(",", $line);
+  $dt = new DateTime("@$terms[0]");
+  echo "<li>Last Updated: " . $dt->format('m-d-Y H:i:s') . "</li>";
+  echo "<li>Temperature (F): " . $terms[1] . "</li>";
+  echo "<li>Humidity (%RH): " . $terms[2] . "</li>";
+  echo "<li>Soil Moisture (V): " . $terms[3] . "</li>";
+  fclose($datafile);
+?>
+	  </ul>
+	  <h3>Current Greenhouse Settings</h3>
+	  <form name="input"
+  action="http://wwwtest.cse.lehigh.edu/~nad213/adjust_fan.cgi" method="POST">
+	    Control Fans: 
+	    <input type="radio" name="fan" value="2">AUTO
+	    <input type="radio" name="fan" value="1">ON
+	    <input type="radio" name="fan" value="0">OFF<br>
+	    <input type="submit" value="Submit Changes"><br>
+	  </form>
         </div>
+	<br>
         <div id="data_holder">
           <div id="temp_graph"></div>
 	  <div id="humid_graph"></div>
