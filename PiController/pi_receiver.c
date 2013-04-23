@@ -6,6 +6,7 @@
 #include <wiringPi.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <math.h>
 
 //NOTES: Alt-92 for \; Alt-124 for |; \ for #
 
@@ -17,20 +18,34 @@
 #define DATA_SIZE 7
 
 void adjust_controls(double temp, double humid, double soil) {
-	if (humid > 40) {
+	// Read from settings.txt
+	if (humid > 80 || temp > 80) {
 		digitalWrite(GPIO_PIN_17, ON);
 		digitalWrite(GPIO_PIN_18, ON);
-	} else {
+	} else if (humid < 70 || temp < 65) {
 		digitalWrite(GPIO_PIN_17, OFF);
 		digitalWrite(GPIO_PIN_18, OFF);
 	}
+}
+
+int validate_data(double temp, double humid, double soil) {
+	if (humid < 0 || humid > 100) {
+		return 0;
+	}
+	// Temperature range: 32F (min) -> 212F (max)
+	if (temp < 32 || temp > 212) {
+		return 0;
+	}
+	if (soil < 0 || soil > 5) {
+		return 0;
+	}
+	return 1;
 }
 
 // Execute a bash script and pass data to it. Return -1 if unsuccessful,
 // and 0 if successful.
 int bash_upload(double temp, double humid, double soil) {
 	// Declare variables
-	int status;
 	pid_t pid;
 	char data_arg[50];
 	char *script = "./upload.sh";
@@ -56,21 +71,17 @@ int bash_upload(double temp, double humid, double soil) {
 		}
 	}
 
-	// This block contains the parent code
-	else {
-		// Wait for bash script to finish
-		printf("C: Waiting...\n");
-		waitpid(-1, &status, 0);
-		printf("C: Script finished successfully.\n");
-	}
-
-	// Return successfully
+	// The parent is running at this point.
+	// Just return with success.
 	return 0;
 }
 
 double convert_temp(unsigned int temp_raw) {
 	double volt = temp_raw/1024.0;
-	return volt * 4.5;
+	double temp = log(6.8/volt - 10.1) + 3974.0/298.15;
+	temp = 3974.0/temp - 273.15;
+	temp = (9.0/5.0)*temp + 32;
+	return temp;
 }
 
 double convert_humid(unsigned int humid_raw) {
@@ -131,6 +142,11 @@ void read_remaining_bytes(int fd, unsigned char *old_buffer, int len, int index)
 		printf("temp = %f\n", temp);
 		printf("humid = %f\n", humid);
 		printf("soil = %f\n", soil);
+
+		if (!validate_data(temp, humid, soil)) {
+			printf("Bad data\n");
+			return;
+		}
 
 		// Upload data via bash script
 		if (bash_upload(temp, humid, soil) == 0) {
